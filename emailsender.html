@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sunset Pro Studio | rohansweb.co.uk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #ff5f6d;
+            --secondary: #ffc371;
+            --bg-dark: #0a0c10;
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: white;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .paint-canvas {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .blob {
+            position: absolute;
+            filter: blur(100px);
+            opacity: 0.2;
+            border-radius: 50%;
+            transition: all 3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass {
+            background: var(--glass);
+            backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .btn-sunset {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 20px -5px rgba(255, 95, 109, 0.3);
+        }
+
+        .btn-sunset:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgba(255, 95, 109, 0.5);
+        }
+
+        #email-body {
+            font-family: 'Fira Code', monospace;
+            line-height: 1.6;
+            resize: none;
+        }
+
+        .theme-card {
+            @apply relative overflow-hidden rounded-2xl h-32 cursor-pointer transition-all duration-500 shadow-xl;
+            border: 2px solid rgba(255,255,255,0.05);
+            min-height: 128px;
+        }
+
+        .theme-card:hover { 
+            transform: translateY(-8px); 
+            border-color: white;
+        }
+
+        .tab-btn.active {
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .modal-bg {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 100;
+        }
+
+        .theme-grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.5rem;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; }
+    </style>
+</head>
+<body class="p-0 m-0">
+
+    <div class="paint-canvas" id="splatter-bg"></div>
+
+    <!-- Header -->
+    <header class="h-20 px-8 flex items-center justify-between border-b border-white/5 glass z-20">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl btn-sunset flex items-center justify-center font-black text-2xl shadow-xl text-white">S</div>
+            <div>
+                <h1 class="text-xl font-black tracking-tight leading-none uppercase italic">Sunset Studio</h1>
+                <span class="text-[10px] text-orange-400 font-mono tracking-widest">PRO BY ROHANSWEB.CO.UK</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button onclick="openModal('theme-modal')" class="px-6 py-2.5 rounded-full glass text-white text-xs font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">
+                🎨 Themes
+            </button>
+            <button onclick="openDeployPreview()" class="btn-sunset px-8 py-3 rounded-full font-bold text-white uppercase tracking-wider text-sm">
+                Deploy Campaign
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow flex p-6 gap-6 overflow-hidden">
+        
+        <!-- Tools -->
+        <aside class="w-72 flex flex-col gap-4 overflow-y-auto pr-2">
+            <div class="glass p-6 rounded-3xl space-y-6">
+                <div>
+                    <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Palette</h3>
+                    <div class="flex gap-3">
+                        <div id="p-circle" class="w-12 h-12 rounded-2xl border-2 border-white/20 shadow-lg" style="background: var(--primary)"></div>
+                        <div id="s-circle" class="w-12 h-12 rounded-2xl border-2 border-white/20 shadow-lg" style="background: var(--secondary)"></div>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Visual Blocks</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="insertTag('h1')" class="bg-white/5 hover:bg-white/10 p-3 rounded-xl text-xs transition-all border border-white/5">Header</button>
+                        <button onclick="insertTag('p')" class="bg-white/5 hover:bg-white/10 p-3 rounded-xl text-xs transition-all border border-white/5">Text</button>
+                        <button onclick="insertTag('btn')" class="bg-white/5 hover:bg-white/10 p-3 rounded-xl text-xs transition-all border border-white/5">Button</button>
+                        <button onclick="openModal('upload-modal')" class="bg-white/5 hover:bg-white/10 p-3 rounded-xl text-xs transition-all border border-white/5 text-orange-400 font-bold">Images ++</button>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-4">Templates</h3>
+                    <select onchange="loadTemplate(this.value)" class="w-full bg-black/40 border border-white/10 rounded-xl p-3 text-xs outline-none focus:border-orange-500">
+                        <option value="minimal">Minimal Slate</option>
+                        <option value="luxury">Golden Silk</option>
+                        <option value="neon">Cyber Glow</option>
+                    </select>
+                </div>
+            </div>
+            <div class="glass p-6 rounded-3xl mt-auto">
+                <p class="text-[10px] text-gray-500 font-bold uppercase mb-2">Pro Tip</p>
+                <p class="text-[11px] text-gray-400 leading-relaxed italic">Bulk upload enabled: Select up to 39 images from your device to build galleries instantly.</p>
+            </div>
+        </aside>
+
+        <!-- Editor & Preview -->
+        <section class="flex-grow flex flex-col gap-6 overflow-hidden">
+            <div class="flex gap-4">
+                <div class="flex-1 glass rounded-2xl p-4">
+                    <label class="text-[9px] uppercase font-bold text-gray-500 tracking-widest block mb-1">To</label>
+                    <input id="to-email" type="email" placeholder="client@domain.com" class="bg-transparent w-full outline-none text-sm font-medium">
+                </div>
+                <div class="flex-[2] glass rounded-2xl p-4">
+                    <label class="text-[9px] uppercase font-bold text-gray-500 tracking-widest block mb-1">Subject</label>
+                    <input id="subject" type="text" placeholder="Something wonderful..." class="bg-transparent w-full outline-none text-sm font-medium">
+                </div>
+            </div>
+
+            <div class="flex-grow flex flex-col glass rounded-[2.5rem] p-8 overflow-hidden relative">
+                <div class="flex items-center justify-between mb-4 border-b border-white/5 pb-4">
+                    <div class="flex gap-8">
+                        <button onclick="setMode('write')" id="btn-write" class="tab-btn active text-xs font-black uppercase tracking-widest transition-all pb-2">Source Code</button>
+                        <button onclick="setMode('preview')" id="btn-preview" class="tab-btn text-xs font-black uppercase tracking-widest transition-all pb-2">Visual Preview</button>
+                    </div>
+                    <div id="sync-status" class="text-[10px] text-emerald-400 font-mono hidden">● LIVE SYNC ACTIVE</div>
+                </div>
+                
+                <div id="editor-container" class="flex-grow h-full">
+                    <textarea id="email-body" spellcheck="false" class="w-full h-full bg-transparent outline-none text-gray-400 text-sm overflow-y-auto" oninput="updatePreview()"></textarea>
+                </div>
+
+                <div id="preview-container" class="hidden flex-grow h-full rounded-2xl overflow-hidden bg-white shadow-2xl">
+                    <iframe id="preview-frame" class="w-full h-full border-none"></iframe>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Feedback Overlay -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 glass px-8 py-4 rounded-2xl border border-emerald-500/30 text-emerald-400 text-sm font-bold tracking-wide z-[200] hidden flex items-center gap-3 shadow-2xl">
+        <span id="toast-icon" class="text-xl">✅</span> <span id="toast-msg">HTML Copied!</span>
+    </div>
+
+    <!-- Theme Modal -->
+    <div id="theme-modal" class="fixed inset-0 modal-bg flex items-center justify-center hidden">
+        <div class="w-full max-w-6xl h-[90vh] glass rounded-[3.5rem] p-12 flex flex-col overflow-hidden">
+            <div class="flex justify-between items-center mb-10">
+                <div>
+                    <h2 class="text-4xl font-black italic tracking-tighter">THEME UNIVERSE</h2>
+                    <p class="text-sm text-gray-500 uppercase tracking-widest mt-2">Instant Brand Transformation</p>
+                </div>
+                <button onclick="closeModal('theme-modal')" class="w-12 h-12 flex items-center justify-center rounded-full glass hover:bg-white hover:text-black transition-all text-2xl font-bold">&times;</button>
+            </div>
+            <div id="theme-grid" class="flex-grow overflow-y-auto pr-4 theme-grid-container custom-scroll"></div>
+        </div>
+    </div>
+
+    <!-- Image Upload Modal -->
+    <div id="upload-modal" class="fixed inset-0 modal-bg flex items-center justify-center hidden">
+        <div class="w-full max-w-lg glass rounded-[2.5rem] p-10 flex flex-col shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-black italic">BULK ASSET MANAGER</h2>
+                <button onclick="closeModal('upload-modal')" class="text-2xl text-gray-500 hover:text-white">&times;</button>
+            </div>
+            
+            <div class="space-y-6">
+                <div class="p-8 border-2 border-dashed border-white/10 rounded-3xl text-center hover:border-orange-500 transition-all cursor-pointer bg-white/5" onclick="document.getElementById('file-input').click()">
+                    <span class="text-3xl block mb-2">📸</span>
+                    <p class="text-sm font-bold text-white mb-1">Upload up to 39 Images</p>
+                    <p class="text-[10px] text-gray-500 uppercase">Select multiple files from your device</p>
+                    <input type="file" id="file-input" class="hidden" accept="image/*" multiple onchange="handleBulkFiles(event)">
+                </div>
+
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-500">🔗</div>
+                    <input id="url-input" type="text" placeholder="Or paste single image URL..." class="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-4 text-sm outline-none focus:border-orange-500">
+                </div>
+
+                <button onclick="insertUrlImage()" class="w-full py-4 btn-sunset rounded-2xl font-black uppercase tracking-widest text-sm">Add URL Image</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Final Preview Modal -->
+    <div id="deploy-modal" class="fixed inset-0 modal-bg flex items-center justify-center hidden">
+        <div class="w-full max-w-4xl h-[85vh] glass rounded-[3rem] p-10 flex flex-col shadow-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-black italic">FINAL DEPLOYMENT</h2>
+                <button onclick="closeModal('deploy-modal')" class="text-2xl text-gray-500 hover:text-white">&times;</button>
+            </div>
+            <p class="text-xs text-gray-400 mb-4 uppercase font-bold tracking-widest">Preview and finalize your campaign.</p>
+            <div class="flex-grow bg-white rounded-3xl overflow-hidden mb-6 border border-white/10">
+                <iframe id="final-preview-frame" class="w-full h-full border-none"></iframe>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="closeModal('deploy-modal')" class="flex-1 py-4 glass rounded-2xl font-bold uppercase tracking-widest">Back to Studio</button>
+                <button onclick="executeSend()" class="flex-[2] py-4 btn-sunset rounded-2xl font-black uppercase tracking-widest shadow-2xl">Copy HTML & Finish</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const editor = document.getElementById('email-body');
+        const previewFrame = document.getElementById('preview-frame');
+        const themeGrid = document.getElementById('theme-grid');
+        const splatterBg = document.getElementById('splatter-bg');
+
+        const featuredThemes = [
+            { name: "Sunset Silk", p: "#ff5f6d", s: "#ffc371" },
+            { name: "Nordic Frost", p: "#00d2ff", s: "#3a7bd5" },
+            { name: "Royal Indigo", p: "#4f46e5", s: "#7c3aed" },
+            { name: "Golden Hour", p: "#f46b45", s: "#eea849" },
+            { name: "Deep Jungle", p: "#11998e", s: "#38ef7d" },
+            { name: "Velvet Night", p: "#4568dc", s: "#b06ab3" },
+            { name: "Bora Bora", p: "#2af598", s: "#009efd" },
+            { name: "Cyber Neon", p: "#00f260", s: "#0575e6" }
+        ];
+
+        function init() {
+            renderSplatters();
+            renderThemes();
+            loadTemplate('minimal');
+            updatePreview();
+            
+            window.addEventListener('message', (event) => {
+                if (event.data.type === 'sync_html') {
+                    editor.value = event.data.content;
+                }
+            });
+        }
+
+        function renderSplatters() {
+            splatterBg.innerHTML = '';
+            for(let i=0; i<6; i++) {
+                const b = document.createElement('div');
+                b.className = 'blob';
+                b.style.width = '600px'; b.style.height = '600px';
+                b.style.left = Math.random() * 100 + '%';
+                b.style.top = Math.random() * 100 + '%';
+                b.style.backgroundColor = i % 2 === 0 ? 'var(--primary)' : 'var(--secondary)';
+                splatterBg.appendChild(b);
+            }
+        }
+
+        function renderThemes() {
+            themeGrid.innerHTML = '';
+            featuredThemes.forEach(t => createThemeCard(t));
+            for(let i=0; i<72; i++) {
+                const h1 = Math.floor(Math.random() * 360);
+                const p = `hsl(${h1}, 75%, 55%)`;
+                const s = `hsl(${(h1 + 40) % 360}, 80%, 70%)`;
+                createThemeCard({ name: `Palette ${i+9}`, p, s });
+            }
+        }
+
+        function createThemeCard(t) {
+            const card = document.createElement('div');
+            card.className = 'theme-card';
+            card.style.background = `linear-gradient(135deg, ${t.p}, ${t.s})`;
+            card.innerHTML = `<div class="absolute bottom-4 left-6"><p class="text-[10px] font-black uppercase tracking-[3px] text-white drop-shadow-lg">${t.name}</p></div>`;
+            card.onclick = () => { applyNewColors(t.p, t.s); closeModal('theme-modal'); };
+            themeGrid.appendChild(card);
+        }
+
+        function applyNewColors(p, s) {
+            document.documentElement.style.setProperty('--primary', p);
+            document.documentElement.style.setProperty('--secondary', s);
+            document.getElementById('p-circle').style.background = p;
+            document.getElementById('s-circle').style.background = s;
+            document.querySelectorAll('.blob').forEach((b, i) => b.style.backgroundColor = i % 2 === 0 ? p : s);
+            updatePreview();
+        }
+
+        function setMode(mode) {
+            const ec = document.getElementById('editor-container');
+            const pc = document.getElementById('preview-container');
+            const sync = document.getElementById('sync-status');
+            
+            if(mode === 'write') {
+                ec.classList.remove('hidden'); pc.classList.add('hidden');
+                document.getElementById('btn-write').classList.add('active');
+                document.getElementById('btn-preview').classList.remove('active');
+                sync.classList.add('hidden');
+            } else {
+                ec.classList.add('hidden'); pc.classList.remove('hidden');
+                document.getElementById('btn-write').classList.remove('active');
+                document.getElementById('btn-preview').classList.add('active');
+                sync.classList.remove('hidden');
+                updatePreview();
+            }
+        }
+
+        function generateFullHTML() {
+            const p = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+            const s = getComputedStyle(document.documentElement).getPropertyValue('--secondary').trim();
+            const content = editor.value;
+            
+            return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; margin: 0; padding: 40px 15px; background: #f8fafc; color: #1e293b; }
+        .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 40px; overflow: hidden; box-shadow: 0 40px 80px -20px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, ${p}, ${s}); padding: 80px 40px; text-align: center; color: white; }
+        .header h1 { margin: 0; font-size: 34px; font-weight: 900; letter-spacing: -1.5px; }
+        .body { padding: 60px 45px; line-height: 1.8; font-size: 16px; color: #334155; }
+        .btn { display: inline-block; padding: 18px 36px; background: ${p}; color: white !important; text-decoration: none; border-radius: 16px; font-weight: 700; margin: 30px 0; }
+        .footer { padding: 40px; text-align: center; font-size: 11px; color: #94a3b8; background: #f1f5f9; text-transform: uppercase; letter-spacing: 1.5px; }
+        img { max-width: 100%; border-radius: 20px; margin: 20px 0; display: block; height: auto; }
+        h2 { color: #0f172a; font-weight: 900; letter-spacing: -0.5px; margin-top: 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header"><h1>Creative Pulse</h1></div>
+        <div class="body">${content}</div>
+        <div class="footer">Broadcast via Sunset Pro Studio &bull; rohansweb.co.uk</div>
+    </div>
+</body>
+</html>`;
+        }
+
+        function updatePreview(targetFrame = 'preview-frame') {
+            const html = generateFullHTML();
+            const interactiveHtml = html.replace('<h1>Creative Pulse</h1>', '<h1 contenteditable="true">Creative Pulse</h1>')
+                                        .replace('<div class="body">', '<div class="body" id="editable-area" contenteditable="true">')
+                                        .replace('</body>', `
+                    <script>
+                        const area = document.getElementById('editable-area');
+                        const h1 = document.querySelector('h1');
+                        function notify() {
+                            window.parent.postMessage({ type: 'sync_html', content: area.innerHTML }, '*');
+                        }
+                        area.addEventListener('input', notify);
+                        h1.addEventListener('input', notify);
+                    <\/script>
+                </body>`);
+
+            const frame = document.getElementById(targetFrame);
+            const doc = frame.contentWindow.document;
+            doc.open(); doc.write(interactiveHtml); doc.close();
+        }
+
+        // Bulk Image Handling
+        async function handleBulkFiles(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            
+            // Limit to 39 as requested
+            const selectedFiles = files.slice(0, 39);
+            
+            showToast("Processing " + selectedFiles.length + " assets...", "⏳");
+            
+            let htmlToInsert = "";
+            
+            for (const file of selectedFiles) {
+                const dataUrl = await fileToDataUrl(file);
+                htmlToInsert += `<img src="${dataUrl}" alt="Campaign Image">\n`;
+            }
+            
+            insertAtCursor(htmlToInsert);
+            closeModal('upload-modal');
+            updatePreview();
+            showToast("Images Added!", "✅");
+            e.target.value = ''; // Reset input
+        }
+
+        function fileToDataUrl(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function insertUrlImage() {
+            const url = document.getElementById('url-input').value;
+            if(!url) return;
+            insertAtCursor(`<img src="${url}" alt="Campaign Image">\n`);
+            document.getElementById('url-input').value = '';
+            closeModal('upload-modal');
+            updatePreview();
+        }
+
+        function insertAtCursor(text) {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            editor.value = editor.value.substring(0, start) + text + editor.value.substring(end);
+            editor.selectionStart = editor.selectionEnd = start + text.length;
+        }
+
+        function openDeployPreview() {
+            updatePreview('final-preview-frame');
+            setTimeout(() => {
+                const fdoc = document.getElementById('final-preview-frame').contentWindow.document;
+                fdoc.querySelectorAll('[contenteditable]').forEach(el => el.setAttribute('contenteditable', 'false'));
+            }, 100);
+            openModal('deploy-modal');
+        }
+
+        function executeSend() {
+            const finalHtml = generateFullHTML();
+            const textArea = document.createElement("textarea");
+            textArea.value = finalHtml;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast("HTML Copied to Clipboard!");
+            } catch (err) {
+                console.error('Copy failed', err);
+            }
+            document.body.removeChild(textArea);
+            closeModal('deploy-modal');
+            
+            const to = document.getElementById('to-email').value || '';
+            const sub = document.getElementById('subject').value || 'Brand Update';
+            window.location.href = `mailto:${to}?subject=${encodeURIComponent(sub)}&body=Design Copied! Paste your HTML content now.`;
+        }
+
+        function showToast(msg, icon = "✅") {
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            document.getElementById('toast-icon').innerText = icon;
+            t.classList.remove('hidden');
+            setTimeout(() => t.classList.add('hidden'), 4000);
+        }
+
+        function insertTag(type) {
+            let tag = '';
+            if(type === 'h1') tag = `<h2>Section Title</h2>\n`;
+            if(type === 'p') tag = `<p>Write your compelling message here.</p>\n`;
+            if(type === 'btn') tag = `<a href="#" class="btn">Click Here</a>\n`;
+            insertAtCursor(tag);
+            updatePreview();
+        }
+
+        function loadTemplate(type) {
+            if(type === 'minimal') editor.value = `<h2>Pure Simplicity</h2><p>This layout removes every distraction, focusing solely on your narrative.</p>`;
+            if(type === 'luxury') editor.value = `<h2>The Collection</h2><p>You are cordially invited to witness the evolution of branding.</p><center><a href="#" class="btn">RSVP Now</a></center>`;
+            if(type === 'neon') editor.value = `<h2>System Update</h2><p>Performance recalibrated. Efficiency up by 150%.</p><img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&q=80">`;
+            updatePreview();
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
