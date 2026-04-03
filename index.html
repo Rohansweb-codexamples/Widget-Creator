@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WidgetPro | Ultimate Creator Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { overflow: hidden; height: 100vh; background-color: #0f172a; font-family: 'Inter', sans-serif; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .preview-canvas { background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px); background-size: 30px 30px; }
+        .sidebar-item { transition: all 0.2s ease; cursor: pointer; border-left: 3px solid transparent; }
+        .sidebar-item.active { background: rgba(59, 130, 246, 0.1); border-left-color: #3b82f6; color: white; }
+        .record-spin { animation: spin 3s linear infinite; animation-play-state: paused; }
+        .playing .record-spin { animation-play-state: running; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        
+        .playlist-scroll { max-height: 200px; overflow-y: auto; }
+        .track-item:hover { background: rgba(255,255,255,0.05); }
+        .track-item.active { border-left: 2px solid #3b82f6; background: rgba(59,130,246,0.1); }
+    </style>
+</head>
+<body class="text-slate-200 flex flex-col">
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 hidden">
+        <div class="glass-panel p-8 rounded-2xl w-full max-w-md border border-blue-500/30">
+            <h2 class="text-2xl font-bold mb-6 text-blue-400">Cloud Access</h2>
+            <div class="space-y-4">
+                <input type="text" placeholder="Username" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" placeholder="Password" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="toggleAuth()" class="w-full bg-blue-600 hover:bg-blue-500 py-3 rounded-lg font-bold">Login / Sign Up</button>
+                <button onclick="toggleAuthModal()" class="w-full text-slate-500 text-sm">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="h-16 flex items-center justify-between px-8 border-b border-slate-800 glass-panel">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+                <i class="fas fa-cubes text-white text-xl"></i>
+            </div>
+            <span class="text-xl font-black tracking-tighter text-white uppercase">Widget<span class="text-blue-500">Pro</span></span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="toggleAuthModal()" class="text-sm font-semibold text-slate-400 hover:text-white transition">
+                <i class="fas fa-user-circle mr-2"></i> <span id="auth-status">Login</span>
+            </button>
+            <button onclick="saveToCloud()" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-full text-sm font-bold transition shadow-lg shadow-blue-500/20">
+                <i class="fas fa-cloud-upload-alt mr-2"></i> Save to Cloud
+            </button>
+        </div>
+    </nav>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="w-20 lg:w-80 border-r border-slate-800 flex flex-col glass-panel overflow-y-auto">
+            <div class="p-4 space-y-2">
+                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-2 hidden lg:block">Category</p>
+                <div onclick="setAppMode('music')" id="btn-music" class="sidebar-item active p-3 rounded-xl flex items-center gap-3 text-slate-400 hover:text-white">
+                    <i class="fas fa-music w-5 text-center"></i> <span class="hidden lg:block text-sm font-medium">Music Player</span>
+                </div>
+                <div onclick="setAppMode('button')" id="btn-button" class="sidebar-item p-3 rounded-xl flex items-center gap-3 text-slate-400 hover:text-white">
+                    <i class="fas fa-mouse-pointer w-5 text-center"></i> <span class="hidden lg:block text-sm font-medium">Button Gen</span>
+                </div>
+                <div onclick="setAppMode('video')" id="btn-video" class="sidebar-item p-3 rounded-xl flex items-center gap-3 text-slate-400 hover:text-white">
+                    <i class="fas fa-play-circle w-5 text-center"></i> <span class="hidden lg:block text-sm font-medium">Video Player</span>
+                </div>
+            </div>
+            
+            <div class="mt-4 p-4 space-y-6">
+                <div id="controls-area">
+                    <!-- Music Mode Specific -->
+                    <div id="music-controls" class="space-y-4">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Collection Type</label>
+                            <select id="music-type" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm" onchange="updateWidget()">
+                                <option value="playlist">Playlist (Up to 70 Songs)</option>
+                                <option value="album">Album</option>
+                                <option value="single">Single Track</option>
+                                <option value="podcast">Podcast Series</option>
+                            </select>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold text-slate-500 uppercase block">Upload Library</label>
+                            <div class="relative">
+                                <input type="file" id="audio-upload" class="hidden" multiple accept="audio/*" onchange="handleBulkUpload(event)">
+                                <label for="audio-upload" class="w-full bg-blue-600/10 hover:bg-blue-600/20 p-4 rounded-xl border border-dashed border-blue-500/50 cursor-pointer flex flex-col items-center justify-center gap-2 text-xs transition-all">
+                                    <i class="fas fa-cloud-arrow-up text-xl text-blue-400"></i>
+                                    <span class="font-bold text-blue-300">Add Audio Files</span>
+                                    <span class="text-[10px] text-slate-500">Max 70 tracks</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="playlist-manager" class="playlist-scroll border border-slate-800 rounded-lg bg-slate-900/30">
+                            <!-- Track list will be injected here -->
+                            <div class="p-8 text-center text-[10px] text-slate-600 italic">No songs uploaded yet</div>
+                        </div>
+                    </div>
+
+                    <!-- Other modes -->
+                    <div id="button-controls" class="hidden space-y-4">
+                        <input type="text" id="btn-label" value="Click Me" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm" oninput="updateWidget()">
+                        <input type="text" id="btn-url" placeholder="Redirect URL" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm" oninput="updateWidget()">
+                    </div>
+                    <div id="video-controls" class="hidden space-y-4">
+                        <input type="text" id="video-url" placeholder="Video URL" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm" oninput="updateWidget()">
+                    </div>
+
+                    <!-- Global Config -->
+                    <div class="pt-6 border-t border-slate-800 space-y-4">
+                        <div>
+                            <label class="text-[10px] font-bold text-slate-500 uppercase block mb-2">Widget Display Title</label>
+                            <input type="text" id="widget-title" value="My Collection" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm" oninput="updateWidget()">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div class="space-y-1">
+                                <label class="text-[10px] text-slate-500 uppercase">Background</label>
+                                <input type="color" id="color-bg" value="#0f172a" class="w-full h-8 rounded bg-transparent" oninput="updateWidget()">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] text-slate-500 uppercase">Primary</label>
+                                <input type="color" id="color-accent" value="#3b82f6" class="w-full h-8 rounded bg-transparent" oninput="updateWidget()">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Preview & Output Area -->
+        <main class="flex-1 flex flex-col bg-slate-950">
+            <div class="flex-1 preview-canvas flex items-center justify-center p-8 overflow-auto">
+                <div id="main-preview" class="p-1 shadow-2xl transition-all duration-300 min-w-[320px]">
+                    <!-- Preview content injected by JS -->
+                </div>
+            </div>
+
+            <!-- Code Output -->
+            <div class="h-64 border-t border-slate-800 glass-panel flex flex-col">
+                <div class="flex items-center justify-between px-6 py-3 border-b border-slate-800 bg-slate-900/50">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Live Embed Code</span>
+                    <button onclick="copyCode()" class="text-xs bg-slate-700 hover:bg-slate-600 px-4 py-1.5 rounded-lg font-bold transition">
+                        <i class="fas fa-copy mr-2"></i> Copy Snippet
+                    </button>
+                </div>
+                <div class="flex-1 overflow-auto p-6 font-mono text-[11px] text-blue-300/70">
+                    <pre id="code-output" class="whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-3 rounded-full shadow-2xl transform translate-y-20 transition-all opacity-0 flex items-center gap-3 z-[100]">
+        <i class="fas fa-info-circle"></i> <span id="toast-msg">Copied!</span>
+    </div>
+
+    <script>
+        let currentMode = 'music';
+        let playlist = []; // Array of { name, url }
+        let currentTrackIndex = 0;
+        let isPlaying = false;
+        let isLoggedIn = false;
+
+        // SVG Constants for embed code consistency
+        const SVG_CD = (color) => `<svg width="50" height="50" viewBox="0 0 100 100" style="display:block;"><circle cx="50" cy="50" r="48" fill="none" stroke="${color}" stroke-width="2" opacity="0.3"/><circle cx="50" cy="50" r="15" fill="none" stroke="${color}" stroke-width="2"/><circle cx="50" cy="50" r="5" fill="${color}"/><path d="M50 2 A48 48 0 0 1 98 50" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"/></svg>`;
+        const SVG_PLAY = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
+        const SVG_PAUSE = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+
+        function setAppMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+            document.getElementById('music-controls').classList.toggle('hidden', mode !== 'music');
+            document.getElementById('button-controls').classList.toggle('hidden', mode !== 'button');
+            document.getElementById('video-controls').classList.toggle('hidden', mode !== 'video');
+            updateWidget();
+        }
+
+        function handleBulkUpload(event) {
+            const files = Array.from(event.target.files);
+            if (playlist.length + files.length > 70) {
+                showToast("Limit exceeded! Maximum 70 songs allowed.", "fa-exclamation-triangle");
+                return;
+            }
+
+            files.forEach(file => {
+                playlist.push({
+                    name: file.name.replace(/\.[^/.]+$/, ""),
+                    url: URL.createObjectURL(file)
+                });
+            });
+
+            renderPlaylistManager();
+            updateWidget();
+            showToast(`${files.length} songs added to library`);
+        }
+
+        function renderPlaylistManager() {
+            const container = document.getElementById('playlist-manager');
+            if (playlist.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-[10px] text-slate-600 italic">No songs uploaded yet</div>`;
+                return;
+            }
+
+            container.innerHTML = playlist.map((track, idx) => `
+                <div class="track-item flex items-center justify-between p-2 px-3 border-b border-slate-800/50 text-[11px] ${idx === currentTrackIndex ? 'active' : ''}">
+                    <div class="flex items-center gap-2 overflow-hidden cursor-pointer flex-1" onclick="selectTrack(${idx})">
+                        <span class="text-slate-600 w-4">${idx + 1}</span>
+                        <span class="truncate text-slate-300 font-medium">${track.name}</span>
+                    </div>
+                    <button onclick="removeTrack(${idx})" class="text-slate-600 hover:text-red-400 p-1"><i class="fas fa-times"></i></button>
+                </div>
+            `).join('');
+        }
+
+        function removeTrack(idx) {
+            playlist.splice(idx, 1);
+            if (currentTrackIndex >= playlist.length) currentTrackIndex = Math.max(0, playlist.length - 1);
+            renderPlaylistManager();
+            updateWidget();
+        }
+
+        function selectTrack(idx) {
+            currentTrackIndex = idx;
+            isPlaying = false;
+            renderPlaylistManager();
+            updateWidget();
+        }
+
+        function updateWidget() {
+            const preview = document.getElementById('main-preview');
+            const title = document.getElementById('widget-title').value;
+            const bg = document.getElementById('color-bg').value;
+            const accent = document.getElementById('color-accent').value;
+            
+            preview.style.backgroundColor = bg;
+            preview.style.borderRadius = '24px';
+            preview.style.color = '#fff';
+
+            let html = "";
+            if (currentMode === 'music') {
+                const type = document.getElementById('music-type').value;
+                const currentTrack = playlist[currentTrackIndex] || { name: "No Track Selected", url: "" };
+                
+                html = `
+                    <div class="w-[320px] p-6">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-16 h-16 bg-black/40 rounded-full flex items-center justify-center border-2 border-white/10 record-spin ${isPlaying ? 'playing' : ''}">
+                                ${SVG_CD(accent)}
+                            </div>
+                            <div class="overflow-hidden">
+                                <p class="text-[10px] text-slate-500 uppercase tracking-widest">${type}</p>
+                                <p class="font-bold truncate text-sm">${currentTrack.name}</p>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div class="flex items-center gap-4">
+                                <button onclick="togglePlayback()" class="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center text-sm shadow-lg">
+                                    <i class="fas ${isPlaying ? 'fa-pause' : 'fa-play'}"></i>
+                                </button>
+                                <div class="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                                    <div class="h-full w-1/4" style="background:${accent}"></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-black/20 rounded-xl p-2 max-h-32 overflow-y-auto">
+                                ${playlist.length > 0 ? playlist.map((t, i) => `
+                                    <div class="flex items-center gap-3 p-2 rounded-lg text-[10px] ${i === currentTrackIndex ? 'bg-white/5' : 'opacity-40'}">
+                                        <span class="w-3">${i + 1}</span>
+                                        <span class="truncate flex-1">${t.name}</span>
+                                        ${i === currentTrackIndex && isPlaying ? '<i class="fas fa-volume-up"></i>' : ''}
+                                    </div>
+                                `).join('') : '<p class="text-[10px] text-center p-4 opacity-30">Playlist is empty</p>'}
+                            </div>
+                        </div>
+                        <audio id="preview-audio" src="${currentTrack.url}"></audio>
+                    </div>
+                `;
+            } else if (currentMode === 'button') {
+                 const label = document.getElementById('btn-label').value;
+                 html = `<div class="p-8 text-center"><button class="px-8 py-3 font-bold rounded-full transition-transform active:scale-95" style="background:${accent}">${label}</button></div>`;
+            } else {
+                html = `<div class="p-8 text-center text-xs opacity-50">${currentMode.toUpperCase()} WIDGET PREVIEW</div>`;
+            }
+
+            preview.innerHTML = html;
+            generateEmbedCode(title, bg, accent);
+        }
+
+        function generateEmbedCode(title, bg, accent) {
+            let snippet = "";
+            if (currentMode === 'music') {
+                const tracksJson = JSON.stringify(playlist.map(t => ({n: t.name, u: t.url})));
+                const cdSvg = SVG_CD(accent).replace(/"/g, "'");
+                const playSvg = SVG_PLAY.replace(/"/g, "'");
+                const pauseSvg = SVG_PAUSE.replace(/"/g, "'");
+
+                snippet = `
+<div id="w-pro-root" style="background:${bg}; border-radius:24px; padding:20px; color:#fff; font-family:sans-serif; width:300px; box-shadow:0 20px 40px rgba(0,0,0,0.4); box-sizing:border-box;">
+    <style>
+        #w-pro-root * { box-sizing: border-box; }
+        @keyframes w-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .w-spinning { animation: w-spin 3s linear infinite; }
+        .w-track:hover { background: rgba(255,255,255,0.05); }
+    </style>
+    <div style="font-size:10px; opacity:0.5; text-transform:uppercase; margin-bottom:12px; letter-spacing:1px;">${title}</div>
+    <div style="display:flex; align-items:center; gap:15px; margin-bottom:20px;">
+        <div id="w-disc" style="width:60px; height:60px; border-radius:50%; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; overflow:hidden;">
+            ${cdSvg}
+        </div>
+        <div style="overflow:hidden; flex:1;">
+            <div id="w-name" style="font-weight:bold; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Select Track</div>
+            <div style="font-size:10px; opacity:0.5; margin-top:2px;">Now Playing</div>
+        </div>
+    </div>
+    <audio id="w-audio"></audio>
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px;">
+        <button id="w-play" style="background:#fff; border:none; width:40px; height:40px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; color:#000; flex-shrink:0; transition:0.2s;">${playSvg}</button>
+        <div style="flex:1; height:4px; background:rgba(255,255,255,0.1); border-radius:2px;"><div id="w-prog" style="height:100%; width:0%; background:${accent}; border-radius:2px; transition:width 0.1s linear;"></div></div>
+    </div>
+    <div id="w-list" style="max-height:140px; overflow-y:auto; font-size:11px; background:rgba(0,0,0,0.2); border-radius:12px; padding:6px;"></div>
+</div>
+<script>
+(function(){
+    const t = ${tracksJson};
+    const a = document.getElementById('w-audio');
+    const p = document.getElementById('w-play');
+    const l = document.getElementById('w-list');
+    const n = document.getElementById('w-name');
+    const pr = document.getElementById('w-prog');
+    const ds = document.getElementById('w-disc');
+    const pSvg = "${playSvg}";
+    const sSvg = "${pauseSvg}";
+    let cur = -1;
+
+    const updateUI = (i, playing) => {
+        n.innerText = t[i].n;
+        p.innerHTML = playing ? sSvg : pSvg;
+        ds.classList.toggle('w-spinning', playing);
+        Array.from(l.children).forEach((c, idx) => {
+            c.style.opacity = idx === i ? '1' : '0.4';
+            c.style.background = idx === i ? 'rgba(255,255,255,0.05)' : 'transparent';
+        });
+    };
+
+    const play = (i) => {
+        if(i === cur) {
+            if(a.paused) a.play(); else a.pause();
+        } else {
+            cur = i; a.src = t[i].u; a.play();
+        }
+        updateUI(cur, !a.paused);
+    };
+
+    t.forEach((s, i) => {
+        const d = document.createElement('div');
+        d.className = 'w-track';
+        d.style.padding = '10px'; d.style.cursor = 'pointer'; d.style.borderRadius = '8px';
+        d.style.transition = '0.2s'; d.style.display = 'flex'; d.style.gap = '10px';
+        d.innerHTML = '<span style="opacity:0.3; width:15px;">' + (i+1) + '</span><span style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + s.n + '</span>';
+        d.onclick = () => play(i);
+        l.appendChild(d);
+    });
+
+    p.onclick = () => { if(cur === -1) play(0); else play(cur); };
+    a.onplay = () => updateUI(cur, true);
+    a.onpause = () => updateUI(cur, false);
+    a.ontimeupdate = () => pr.style.width = (a.currentTime/a.duration*100) + '%';
+    a.onended = () => { if(cur < t.length-1) play(cur+1); else updateUI(cur, false); };
+})();
+<\/script>`.trim();
+            } else if (currentMode === 'button') {
+                const label = document.getElementById('btn-label').value;
+                const url = document.getElementById('btn-url').value || '#';
+                snippet = `<a href="${url}" style="display:inline-block; background:${accent}; color:#fff; padding:14px 34px; border-radius:100px; font-weight:bold; font-family:sans-serif; text-decoration:none; box-shadow:0 10px 20px rgba(0,0,0,0.1); transition: 0.2s transform;" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform='scale(1)'">${label}</a>`;
+            }
+            document.getElementById('code-output').innerText = snippet;
+        }
+
+        function togglePlayback() {
+            const aud = document.getElementById('preview-audio');
+            if (!aud.src || aud.src.includes('null')) return showToast("Upload audio files first!");
+            if (isPlaying) aud.pause(); else aud.play();
+            isPlaying = !isPlaying;
+            updateWidget();
+        }
+
+        function toggleAuthModal() { document.getElementById('auth-modal').classList.toggle('hidden'); }
+        function toggleAuth() {
+            isLoggedIn = !isLoggedIn;
+            document.getElementById('auth-status').innerText = isLoggedIn ? 'Logged In' : 'Login';
+            toggleAuthModal();
+            showToast(isLoggedIn ? "Cloud Sync Active" : "Logged Out");
+        }
+
+        function saveToCloud() {
+            if(!isLoggedIn) return toggleAuthModal();
+            showToast("Playlist saved to your cloud!");
+        }
+
+        function copyCode() {
+            navigator.clipboard.writeText(document.getElementById('code-output').innerText);
+            showToast("Embed code copied!");
+        }
+
+        function showToast(msg, icon = "fa-info-circle") {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.querySelector('i').className = `fas ${icon}`;
+            toast.style.transform = 'translateY(0) translateX(-50%)';
+            toast.style.opacity = '1';
+            setTimeout(() => {
+                toast.style.transform = 'translateY(20px) translateX(-50%)';
+                toast.style.opacity = '0';
+            }, 3000);
+        }
+
+        window.onload = () => updateWidget();
+    </script>
+</body>
+</html>
